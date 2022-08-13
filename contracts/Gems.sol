@@ -25,11 +25,37 @@ contract FYTE is ERC20, Ownable {
 
    
 
+    bool private _pausedBuy;
+    bool private _pausedClaim;
+
     constructor(string memory name, string memory symbol) ERC20(name,symbol) {
-        //
+        _pausedBuy = false;
+        _pausedClaim = false;
     }
+    function pauseBuy() public onlyOwner {
+        _pausedBuy=true;
+    }
+    function unpauseBuy() public onlyOwner {
+        _pausedBuy=false;
+    }
+    function pauseClaim() public onlyOwner {
+        _pausedClaim=true;
+    }
+    function unpauseClaim() public onlyOwner {
+        _pausedClaim=false;
+    }
+    modifier whenClaimNotPaused() {
+        require(! (_pausedClaim),"Claim is paused");
+        _;
+    }
+    modifier whenBuyNotPaused() {
+        require(! (_pausedBuy),"Buy is paused");
+        _;
+    }
+
+
     //Allows users to claim a set amount of tokens daily depending on whether they own a V1 or V2 NFT
-    function Claim() public {
+    function Claim() public whenClaimNotPaused {
        
         uint256 lastClaimDate = ClaimDate[msg.sender];
         if(block.timestamp-lastClaimDate >= WaitTime) { //use timestamp on a large timescale is safe.
@@ -56,16 +82,21 @@ contract FYTE is ERC20, Ownable {
 
     }
     //Allows users to “buy” a set number of tokens at a fixed price. 
-    function Buy(uint256 mintAmount) public payable { 
+    function Buy(uint256 mintAmount) public payable whenBuyNotPaused { 
         //NOTE: Solidity 0.8.0 and above will check for overflows, so we are safe to multiply inputAmount
-
-        if(msg.value >= mintAmount * FYTECost) {
-             _mint(msg.sender,mintAmount);
-        }
+        require(msg.value >= mintAmount * FYTECost, "Not enough ether send");
+        _mint(msg.sender,mintAmount);
         
     }
     function OwnerMint(uint256 mintAmount) public onlyOwner {
          _mint(msg.sender,mintAmount);
+    }
+    function timeToClaim() public view returns (uint256) {
+        uint256 time = (block.timestamp-ClaimDate[msg.sender]);
+        if(time >WaitTime) {
+            return 0;
+        }
+        return WaitTime - time;
     }
     //allows changing of variables, will include other ones over time
     function changeV1Address(address NewV1Address) public onlyOwner {

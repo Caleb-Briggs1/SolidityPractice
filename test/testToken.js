@@ -73,10 +73,10 @@ contract("TokenTest", async accounts => {
       await gems.Buy(2,{from:firstAccount, value: 2 * Math.pow(10,18)});
       assert.equal(await gems.balanceOf(firstAccount), initTokens + 2, "Didn't mint tokens correctly")
 
-      /*
-      await gems.Buy(100,{from:firstAccount, value: 100 * Math.pow(10,18)});
-      assert.equal(await gems.balanceOf(firstAccount), 2, "Didn't mint tokens correctly")
-      transaction will fail if funds are not there, which is good */
+      
+      //await gems.Buy(100,{from:firstAccount, value: 100 * Math.pow(10,18)});
+      //assert.equal(await gems.balanceOf(firstAccount), 2, "Didn't mint tokens correctly")
+      //transaction will fail if funds are not there, which is good 
 
       await gems.Buy(1,{from:firstAccount, value: 1 * Math.pow(10,18)});
       assert.equal(await gems.balanceOf(firstAccount), initTokens+3, "Didn't mint tokens correctly")
@@ -97,10 +97,64 @@ contract("TokenTest", async accounts => {
     catch {
       //if transaction is reverted, that is good
     }
-
-
-    
   });
+  
+  it("Pause buy", async () => {
+    const [firstAccount,secondAccount] = accounts;
+    await init();
+    initTokens = (await gems.balanceOf(firstAccount)).toNumber();
+    await gems.pauseBuy({from:firstAccount});
+    try {
+      await gems.pauseBuy({from:secondAccount});
+    }
+    catch(e){
+      assert.equal(e.data["stack"].includes("Ownable: caller is not the owner"), true, "Unexpected error") //catch the runtime error that occurs when `onlyOwner` is not met
+    }
+    try {
+      await gems.Buy(1,{from:firstAccount, value: 1 * Math.pow(10,18)})
+    }
+    catch(e) {
+      assert.equal(e.data["stack"].includes("Buy is paused"), true, "Unexpected error") //catch the runtime error that occurs when `onlyOwner` is not met
+    }
+    assert.equal( (await gems.balanceOf(firstAccount)).toNumber(),initTokens, "User was still able to buy tokens")
+    await gems.unpauseBuy({from:firstAccount});
+    await gems.Buy(1,{from:firstAccount, value: 1 * Math.pow(10,18)})
+    assert.equal( (await gems.balanceOf(firstAccount)).toNumber(),initTokens+1, "User was not able to buy tokens after unpause")
+
+
+  });
+  it("Pause claim", async () => {
+    const [firstAccount,secondAccount,thirdAccount] = accounts;
+    await init();
+    initTokens = (await gems.balanceOf(secondAccount)).toNumber();
+    await gems.pauseClaim({from:firstAccount});
+    try {
+      await gems.pauseClaim({from:secondAccount});
+    }
+    catch(e){
+      assert.equal(e.data["stack"].includes("Ownable: caller is not the owner"), true, e.data["stack"]) //catch the runtime error that occurs when `onlyOwner` is not met
+    }
+    try {
+      await gems.Claim({from:secondAccount})
+    }
+    catch(e) {
+      assert.equal(e.data["stack"].includes("Claim is paused"), true, e.data["stack"]) //catch the runtime error that occurs when `onlyOwner` is not met
+    }
+    assert.equal( (await gems.balanceOf(secondAccount)).toNumber(),initTokens, "User was still able to claim tokens")
+    await gems.unpauseClaim({from:firstAccount}); 
+    await gems.changeV2Claim(2,{from:firstAccount})
+    await gems.Claim({from:secondAccount})
+    assert.equal( (await gems.balanceOf(secondAccount)).toNumber(),initTokens+2, "User was not able to claim tokens after unpause")
+
+
+  });
+  it("Time to claim", async() => {
+    const [firstAccount,secondAccount,thirdAccount] = accounts;
+    await init();
+
+  })
+  
+  
   
 
 })
