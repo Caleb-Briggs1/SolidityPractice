@@ -151,7 +151,13 @@ contract("TokenTest", async accounts => {
   it("Time to claim", async() => {
     const [firstAccount,secondAccount,thirdAccount] = accounts;
     await init();
-
+    await gems.Claim({from:firstAccount})
+    await gems.changeWaitTime(60*60*24);
+    
+    let wait = await gems.timeToClaim.call();
+    console.log(wait);
+    assert.equal( wait > 60*60*24 - 60, true, "Wait does not give correct value")
+    
   })
   
   
