@@ -17710,12 +17710,12 @@
     "5777": {
       "events": {},
       "links": {},
-      "address": "0x6f5E57f466BC67a2119Ea96D419c9659a5C1D575",
-      "transactionHash": "0x6c65edef5fb265b0c103a810865659deba0474445883b81f0cc159a0b00eede2"
+      "address": "0x90D0879767DA7c8b3Fc52C6EBDfF8A4EeC077359",
+      "transactionHash": "0xa09d50b441307f077a814119627244592dd4cc7da4490126efe782175a1eaaca"
     }
   },
   "schemaVersion": "3.4.8",
-  "updatedAt": "2022-08-12T20:17:07.404Z",
+  "updatedAt": "2022-08-14T21:27:26.941Z",
   "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",
