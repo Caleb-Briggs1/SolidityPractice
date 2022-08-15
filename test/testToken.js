@@ -159,16 +159,16 @@ contract("TokenTest", async accounts => {
   });
   it("Withdraw profits", async () => {
     const [firstAccount,secondAccount,thirdAccount] = accounts;
-    let moneyAccount = "0xb0de9ADbF6401247cf5C70Bb2164C6Da440A8ceb"; //NOTE: hardcoded since we need an account for this. 
+    let moneyAccount = "0x79291294B243a34f2670923c42C1643cCd481C45"; //NOTE: hardcoded since we need an account for this. 
     await init();
     let initialFunds = await web3.eth.getBalance(moneyAccount)
-    await gems.release("0xb0de9ADbF6401247cf5C70Bb2164C6Da440A8ceb")
+    await gems.release(moneyAccount)
     console.log(await web3.eth.getBalance(moneyAccount) - initialFunds)
     assert.equal(await web3.eth.getBalance(moneyAccount) > initialFunds, true, "Did not gain funds from pulling" )
 
-    let moneyAccount2 = "0x47F7042a8dec01DD1Ebd86C2032Be66F220dd2De";
+    let moneyAccount2 = "0x133C6b56c58938a17FE6BBecaeA06Bc294BdEA47";
 
-    await gems.release("0x47F7042a8dec01DD1Ebd86C2032Be66F220dd2De")
+    await gems.release(moneyAccount2)
     
     
   });
