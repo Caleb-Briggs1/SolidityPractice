@@ -9,15 +9,7 @@ import "../node_modules/@openzeppelin/contracts/finance/PaymentSplitter.sol";
 
 //note: could make this thing pausable and include some reentrancyGuard for good security
 
-interface V1NFT is IERC721 {
-}
-interface V2NFT is IERC721 {
-}
-
 contract FYTE is ERC20, Ownable,PaymentSplitter {
-    
-    
-
     address public V2Address; //these are just temporary values for testing
     address public V1Address;
     uint256 public V1ClaimAmount=1;
@@ -25,16 +17,11 @@ contract FYTE is ERC20, Ownable,PaymentSplitter {
     uint256 public FYTECost = 1 ether;
     mapping (address=>uint256) private ClaimDate; //mapping of addresses to time last claimed succuesfully. 
     uint256 private WaitTime  = 60*60*24;  //seconds in a day-- wait 24 hours between claims
-
-
     bool private _pausedBuy;
     bool private _pausedClaim;
-
     constructor(string memory name, string memory symbol, address[] memory payees, uint256[] memory shares) ERC20(name,symbol) PaymentSplitter(payees, shares) {
         _pausedBuy = false;
         _pausedClaim = false;
-        V2Address=0xB0871457eD9812e56083072E8251991e58377C84;
-        V1Address = 0x449d0c8BB64269b263e8670F04Ba1059f12c38D2;
     }
     function pauseBuy() public onlyOwner {
         _pausedBuy=true;
@@ -48,47 +35,28 @@ contract FYTE is ERC20, Ownable,PaymentSplitter {
     function unpauseClaim() public onlyOwner {
         _pausedClaim=false;
     }
-    modifier whenClaimNotPaused() {
-        require(! (_pausedClaim),"Claim is paused");
-        _;
-    }
-    modifier whenBuyNotPaused() {
-        require(! (_pausedBuy),"Buy is paused");
-        _;
-    }
-
+    //NOTE:
+        //more test functions for all the only owner functions
+        //gas optimzie to make it smaller
+        //check if wait time being a function 
 
     //Allows users to claim a set amount of tokens daily depending on whether they own a V1 or V2 NFT
-    function Claim() public whenClaimNotPaused {
-       
+    function Claim() public {
+        require(! (_pausedClaim),"Claim is paused");
         uint256 lastClaimDate = ClaimDate[msg.sender];
-        if(block.timestamp-lastClaimDate >= WaitTime) { //use timestamp on a large timescale is safe.
-            ClaimDate[msg.sender] = block.timestamp; //update the date first 
-            V1NFT V1Contract = V1NFT(V1Address);
-            V2NFT V2Contract = V2NFT(V2Address);
-            //we control the location of these contracts, so we don't have to worry about re-entrancy
-            uint256 NFTCount1 = V1Contract.balanceOf(msg.sender); 
-            uint256 NFTCount2 = V2Contract.balanceOf(msg.sender);
-            if(NFTCount1 * V1ClaimAmount > 0) {
-                _mint(msg.sender, NFTCount1 * V1ClaimAmount);
-            }
-            if(NFTCount2 * V2ClaimAmount > 0) {
-                _mint(msg.sender, NFTCount2 * V2ClaimAmount);
-            }
-            
-
-            //mint tokens based on V1 and V2 tokens.
-        }
-        else {
-            return; //already claimed their tokens. Maybe change this to return time until they can claim in the future if neccesary
-        }
-
-
+        require(block.timestamp-lastClaimDate >= WaitTime, "Not yet ready to claim"); //use timestamp on a large timescale is safe.
+        ClaimDate[msg.sender] = block.timestamp; //update the date first 
+        //we control the location of these contracts, so we don't have to worry about re-entrancy
+        uint256 NFTCount1 = IERC721(V1Address).balanceOf(msg.sender); 
+        uint256 NFTCount2 = IERC721(V2Address).balanceOf(msg.sender);
+        uint256 totalMint = (NFTCount1 * V1ClaimAmount)+ (NFTCount2 * V2ClaimAmount);
+        _mint(msg.sender, totalMint); //minting zero seems to cost almost nothing extra based on testing
     }
     //Allows users to “buy” a set number of tokens at a fixed price. 
-    function Buy(uint256 mintAmount) public payable whenBuyNotPaused { 
+    function Buy(uint256 mintAmount) public payable { 
         //NOTE: Solidity 0.8.0 and above will check for overflows, so we are safe to multiply inputAmount
-        require(msg.value >= mintAmount * FYTECost, "Not enough ether send");
+        require(! (_pausedBuy),"Buy is paused");
+        require(msg.value >= mintAmount * FYTECost, "Not enough ether sent");
         _mint(msg.sender,mintAmount);
         
     }

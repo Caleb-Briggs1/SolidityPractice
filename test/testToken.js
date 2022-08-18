@@ -10,6 +10,9 @@ const Web3 = require("web3")
 const web3 = new Web3("http://localhost:7545")
 
 
+let payee1 = "0x01FB9FE99DBf58e7c8c3bBC8C2A5093BF5d39A7D";
+let payee2 = "0x16fE6dfb4ddCeFF03Be66208e592A2A135B08E58" ;
+
 async function init() {
     gems = await gemToken.deployed();
     v1NFT = await v1.deployed();
@@ -33,8 +36,13 @@ contract("TokenTest", async accounts => {
         assert.equal(await v1NFT.balanceOf(firstAccount),1,"didn't mint any tokens")
         await gems.Claim({from:firstAccount})
         assert.equal( (await gems.balanceOf(firstAccount)), 1, "didn't mint right number of tokens")
-        await gems.Claim({from:firstAccount})
-        assert.equal( (await gems.balanceOf(firstAccount)), 1, "minted tokens even though wait time was not reached")
+        try {
+          await gems.Claim({from:firstAccount})
+          assert.equal( (await gems.balanceOf(firstAccount)), 1, "minted tokens even though wait time was not reached")
+        }
+        catch(e) {
+          assert(e.message.includes("Not yet ready to claim"), true, "Unexpected error")
+        }
         await gems.changeWaitTime(1); //1 second of wait time between calls
         await delay(1500);
         await gems.Claim({from:firstAccount});
@@ -53,8 +61,14 @@ contract("TokenTest", async accounts => {
         assert.equal(await v2NFT.balanceOf(secondAccount),1,"didn't mint any tokens")
         await gems.Claim({from:secondAccount})
         assert.equal( (await gems.balanceOf(secondAccount)), 1, "didn't mint right number of tokens")
-        await gems.Claim({from:secondAccount})
-        assert.equal( (await gems.balanceOf(secondAccount)), 1, "minted tokens even though wait time was not reached")
+        try {
+          await gems.Claim({from:secondAccount})
+          assert.equal( (await gems.balanceOf(secondAccount)), 1, "minted tokens even though wait time was not reached")
+        }
+        catch(e) {
+          assert(e.message.includes("Not yet ready to claim"), true, "Unexpected error occured")
+        }
+        
         await gems.changeWaitTime(1); //1 second of wait time between calls
         await delay(1500);
         await gems.Claim({from:secondAccount});
@@ -73,10 +87,22 @@ contract("TokenTest", async accounts => {
       await gems.Buy(2,{from:firstAccount, value: 2 * Math.pow(10,18)});
       assert.equal(await gems.balanceOf(firstAccount), initTokens + 2, "Didn't mint tokens correctly")
 
-      
-      //await gems.Buy(100,{from:firstAccount, value: 100 * Math.pow(10,18)});
-      //assert.equal(await gems.balanceOf(firstAccount), 2, "Didn't mint tokens correctly")
-      //transaction will fail if funds are not there, which is good 
+      try {
+        await gems.Buy(120,{from:firstAccount, value: 120 * Math.pow(10,18)});
+        assert.equal(await gems.balanceOf(firstAccount), 2, "Minted even though the user didn't have the required funds")
+        //transaction will fail if funds are not there, which is good 
+      }
+      catch(e) {
+        assert.equal(e.data["stack"].includes("sender doesn't have enough funds to send tx"), true, "Unexpected error") //catch the runtime error that occurs when `onlyOwner` is not met
+      }
+      try {
+        await gems.Buy({from:firstAccount, value: 30 * Math.pow(10,18)});
+        assert.equal(await gems.balanceOf(firstAccount), 2, "Minted even when input was empty")
+        //transaction will fail if funds are not there, which is good 
+      }
+      catch(e) {
+        assert.equal(e.message.includes("invalid BigNumber value"), true, "Unexpected error") //catch the runtime error that occurs when `onlyOwner` is not met
+      }
 
       await gems.Buy(1,{from:firstAccount, value: 1 * Math.pow(10,18)});
       assert.equal(await gems.balanceOf(firstAccount), initTokens+3, "Didn't mint tokens correctly")
@@ -159,19 +185,37 @@ contract("TokenTest", async accounts => {
   });
   it("Withdraw profits", async () => {
     const [firstAccount,secondAccount,thirdAccount] = accounts;
-    let moneyAccount = "0x79291294B243a34f2670923c42C1643cCd481C45"; //NOTE: hardcoded since we need an account for this. 
+    let moneyAccount = payee1; //NOTE: hardcoded since we need an account for this. 
     await init();
     let initialFunds = await web3.eth.getBalance(moneyAccount)
     await gems.release(moneyAccount)
     console.log(await web3.eth.getBalance(moneyAccount) - initialFunds)
     assert.equal(await web3.eth.getBalance(moneyAccount) > initialFunds, true, "Did not gain funds from pulling" )
 
-    let moneyAccount2 = "0x133C6b56c58938a17FE6BBecaeA06Bc294BdEA47";
+    let moneyAccount2 =payee2;
 
     await gems.release(moneyAccount2)
     
     
   });
+  it("Change FYTE Cost", async () => {
+    const [firstAccount,secondAccount,thirdAccount] = accounts;
+    await init();
+    initTokens = (await gems.balanceOf(firstAccount)).toNumber()
+
+    await gems.changeFYTECost( String(2* Math.pow(10,18)) );
+    await gems.Buy(1,{from:firstAccount, value: 2 * Math.pow(10,18)});
+    assert.equal(await gems.balanceOf(firstAccount), initTokens + 1, "Didn't mint tokens correctly")
+    try {
+      await gems.Buy(2,{from:firstAccount, value: 2 * Math.pow(10,18)});
+    }
+    catch(e) {
+      
+      assert.equal(e.message.includes("Not enough ether sent"),true, "Unexpected error"+ e.message )
+    }
+
+
+  })
 
 
   
